@@ -6,3 +6,10 @@ dist/
 *.egg-info/
 .pytest_cache/
 .cursor/mcp.json
+
+# Commercial Agensi Pro Skills (Proprietary - Do not commit)
+agensi_build/
+credentials.json
+.observability-mcp-cache/
+# Skill packaging scripts (Proprietary - Do not commit)
+scripts/

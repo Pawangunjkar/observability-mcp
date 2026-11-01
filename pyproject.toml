@@ -1,19 +1,39 @@
 [project]
-name = "pawangunjkar-observability-mcp"
-version = "1.0.0"
-description = "MCP server for Prometheus, Loki, Tempo, and Grafana — logs, metrics, traces, alerts"
+name = "observability-mcp"
+version = "1.1.0"
+description = "MCP server for Prometheus, Loki, Tempo, and Grafana — 15 SRE tools for metrics, logs, traces, cross-signal correlation, and post-deploy canary audits"
 requires-python = ">=3.10"
-authors = [{ name = "Pawan Gunjkar", email = "pawangunjkar@gmail.com" }]
+authors = [
+    { name = "Pawan Gunjkar", email = "pawangunjkar@gmail.com" }
+]
 readme = "README.md"
 license = { text = "MIT" }
-keywords = ["mcp", "observability", "prometheus", "loki", "tempo", "grafana"]
+keywords = ["mcp", "model-context-protocol", "observability", "prometheus", "loki", "tempo", "grafana", "sre", "devops"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Monitoring",
+]
+
 dependencies = [
     "mcp[cli]>=1.0.0,<2",
     "httpx>=0.27.0",
 ]
 
 [project.scripts]
-pawangunjkar-observability-mcp = "server:main"
+observability-mcp = "server:main"
+
+[project.urls]
+Homepage = "https://github.com/Pawangunjkar/observability-mcp"
+Repository = "https://github.com/Pawangunjkar/observability-mcp"
+Issues = "https://github.com/Pawangunjkar/observability-mcp/issues"
+Documentation = "https://github.com/Pawangunjkar/observability-mcp#readme"
 
 [build-system]
 requires = ["hatchling"]
@@ -21,3 +41,17 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
+
+[tool.hatch.build.targets.wheel.force-include]
+"server.py" = "server.py"
+"obs_client.py" = "obs_client.py"
+"credential_store.py" = "credential_store.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "server.py",
+    "obs_client.py",
+    "credential_store.py",
+    "README.md",
+    "LICENSE",
+]

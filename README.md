@@ -10,7 +10,7 @@ Sibling servers: [github-mcp](https://github.com/Pawangunjkar/github-mcp), [jenk
 
 | Item | Value |
 | --- | --- |
-| Package | `pawangunjkar-observability-mcp` |
+| Package | `observability-mcp` |
 | Runtime | Python 3.10+, FastMCP, stdio, httpx |
 | Backends | Prometheus, Loki, Tempo, Grafana |
 | Reads | PromQL, LogQL, trace fetch, trace search, datasources, alert rules |
