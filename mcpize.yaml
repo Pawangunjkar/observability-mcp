@@ -4,6 +4,9 @@ description: "Full-lifecycle Observability & SRE MCP server with 15 tools unifyi
 runtime: python
 entry: server.py
 
+build:
+  command: python -m py_compile server.py
+
 startCommand:
   type: http
   command: python -m server --http
