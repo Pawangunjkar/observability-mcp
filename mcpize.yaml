@@ -1,0 +1,44 @@
+version: 1
+name: pawangunjkar-observability-mcp
+description: "Full-lifecycle Observability & SRE MCP server with 15 tools unifying Prometheus PromQL metrics, Loki LogQL logs, Grafana Tempo distributed traces (trace_id), Grafana alert governance, slow trace bottlenecks, and post-deploy Golden Signal canary audits."
+runtime: python
+entry: server.py
+
+startCommand:
+  type: http
+  command: python -m server --http
+
+credentials_mode: per_user
+credentials:
+  - name: PROMETHEUS_URL
+    description: "Prometheus or Thanos/VictoriaMetrics HTTP API base URL."
+    required: false
+    placeholder: "https://prometheus.example.com"
+  - name: LOKI_URL
+    description: "Grafana Loki HTTP API base URL for LogQL queries."
+    required: false
+    placeholder: "https://loki.example.com"
+  - name: TEMPO_URL
+    description: "Grafana Tempo HTTP API base URL for trace_id lookups and TraceQL searches."
+    required: false
+    placeholder: "https://tempo.example.com"
+  - name: GRAFANA_URL
+    description: "Grafana server URL for datasources, alert rules, and annotations."
+    required: false
+    placeholder: "https://grafana.example.com"
+  - name: GRAFANA_TOKEN
+    description: "Grafana API key or service account token (optional)."
+    required: false
+    placeholder: "your-grafana-service-token"
+  - name: OBS_SESSION
+    description: "Default observability session name (default: default)."
+    required: false
+    placeholder: "default"
+  - name: OBS_TIMEOUT
+    description: "HTTP query timeout in seconds (default: 30)."
+    required: false
+    placeholder: "30"
+  - name: OBS_MCP_CACHE_DIR
+    description: "Optional writable directory for local session credential cache."
+    required: false
+    placeholder: "/tmp/observability-mcp-cache"

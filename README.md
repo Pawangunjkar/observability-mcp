@@ -4,7 +4,18 @@ Open-source MCP server owned by **Pawan Gunjkar** (`pawangunjkar@gmail.com` · [
 
 Developers ask why a request failed and get metrics, logs, and a trace without opening Grafana. Queries are read-only. `obs_annotate` is the only write: it posts a Grafana annotation.
 
-Sibling servers: [github-mcp](https://github.com/Pawangunjkar/github-mcp), [jenkins-mcp](https://github.com/Pawangunjkar/jenkins-mcp), [db-mcp](https://github.com/Pawangunjkar/db-mcp), [k8s-mcp](https://github.com/Pawangunjkar/k8s-mcp).
+Sibling servers: [github-mcp](https://github.com/Pawangunjkar/github-mcp), [jenkins-mcp](https://github.com/Pawangunjkar/jenkins-mcp), [artifact-registry-mcp](https://github.com/Pawangunjkar/artifact-registry-mcp), [k8s-mcp](https://github.com/Pawangunjkar/k8s-mcp), [linux-ssh-mcp](https://github.com/Pawangunjkar/linux-ssh-mcp).
+
+## 🚀 Hosted Cloud (MCPize.com) & Pro Agent Skill Bundles (Agensi.io)
+
+Run locally over `stdio` or subscribe to managed cloud endpoints on **[MCPize.com](https://mcpize.com)** paired with production `SKILL.md` playbooks on **[Agensi.io](https://agensi.io)**:
+
+| Tier | Offering | Cloud Runtime ([MCPize.com](https://mcpize.com)) | Pro Playbook ([Agensi.io](https://agensi.io)) | What's Included |
+| :--- | :--- | :---: | :---: | :--- |
+| **Free Demo** | Starter Access | `$0` *(25 read-only calls/mo)* | `github-mcp-lite` (`$0`) | Free read-only trial tier |
+| **Individual Pro** *(This Repo)* | **`observability-mcp`** | **`$19/mo`** *(`pawangunjkar-observability-mcp`)* | `observability-sre-mcp-pro` (`$19`) | All **15 Prometheus/Loki/Tempo/Grafana tools** + 5 SRE correlation playbooks |
+| **3-in-1 Bundles** *(Included in 2 Packs)* | **Cloud-Native DevOps** \| **SRE Incident Triage** | **`$39/mo`** each | Bundle 1 \| Bundle 3 (`$39`) | `github+k8s+obs` (118 tools) \| `k8s+obs+linux-ssh` (100 tools) |
+| **6-in-1 Master Suite** | **Enterprise SDLC Orchestrator** *(Saves 37%)* | **`$69/mo`** *(`pawangunjkar-enterprise-sdlc-suite`)* | `enterprise-sdlc-orchestrator` (`$69`) | **All 6 MCP servers unified (245 tools)** + end-to-end SDLC/SRE workflows |
 
 ## Project information
 
