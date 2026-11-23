@@ -36,6 +36,36 @@ SPAN_ID_PATTERNS = (
 )
 
 
+class BackendError(Exception):
+    """An observability backend answered with an HTTP error."""
+
+
+def _limit_text(text: str, limit: int = MAX_OUTPUT_SIZE) -> str:
+    if len(text) <= limit:
+        return text
+    return (
+        text[:limit]
+        + f"\n\n... [TRUNCATED — showing {limit:,} of {len(text):,} characters. "
+        "Narrow the query (labels, time range, limit) to see everything.]"
+    )
+
+
+def format_json(data: Any, limit: int = MAX_OUTPUT_SIZE) -> str:
+    """Pretty JSON when it fits, compact JSON when that fits, otherwise a marked truncation."""
+    pretty = json.dumps(data, indent=2)
+    if len(pretty) <= limit:
+        return pretty
+    compact = json.dumps(data, separators=(",", ":"))
+    if len(compact) <= limit:
+        return compact
+    return _limit_text(compact, limit)
+
+
+def promql_label_value(value: str) -> str:
+    """Escape a string for use inside a double-quoted PromQL label matcher."""
+    return str(value).replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
 class ObsClient:
     """
     Observability backend HTTP client.
@@ -173,13 +203,28 @@ class ObsClient:
         headers: dict | None = None,
         timeout: int = DEFAULT_TIMEOUT,
     ) -> str:
-        """GET request, return JSON-formatted or raw text (truncated)."""
+        """
+        GET request, return JSON-formatted or raw text.
+
+        HTTP errors are reported as errors (never passed off as query results), and
+        oversized results are clearly marked as truncated instead of being cut
+        silently in the middle of the JSON.
+        """
         with httpx.Client(timeout=timeout) as client:
             response = client.get(url, params=params, headers=headers or {})
+        if response.status_code >= 400:
+            detail = response.text.strip()
+            try:
+                body = response.json()
+                detail = body.get("error") or body.get("message") or detail
+            except Exception:
+                pass
+            raise BackendError(f"HTTP {response.status_code} from {url}: {str(detail)[:500]}")
         try:
-            return json.dumps(response.json(), indent=2)[:MAX_OUTPUT_SIZE]
+            data = response.json()
         except Exception:
-            return response.text[:MAX_OUTPUT_SIZE]
+            return _limit_text(response.text)
+        return format_json(data)
 
     def _get_json(
         self,
@@ -400,6 +445,10 @@ class ObsClient:
                 f"{session.grafana_url}/api/annotations",
                 json=payload,
                 headers=headers,
+            )
+        if response.status_code >= 400:
+            raise BackendError(
+                f"HTTP {response.status_code} creating Grafana annotation: {response.text[:500]}"
             )
         return response.text[:4000]
 

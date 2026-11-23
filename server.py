@@ -23,7 +23,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from obs_client import ObsClient
+from obs_client import ObsClient, format_json, promql_label_value
 from credential_store import CredentialStore
 
 # ============================================================
@@ -46,6 +46,22 @@ mcp = FastMCP(
         "and obs_post_deploy_canary_audit after k8s-mcp rollouts."
     ),
 )
+
+_UNSAFE_SELECTOR_CHARS = re.compile(r'["\\`{}\n\r]')
+
+
+def _unsafe_selector_values(**values: str) -> str:
+    """
+    Reject names that would break out of a quoted PromQL / LogQL / TraceQL label value.
+
+    Service and namespace names never legitimately contain quotes, backslashes, or braces.
+    Returns an error message, or '' when every value is safe.
+    """
+    for name, value in values.items():
+        if value and _UNSAFE_SELECTOR_CHARS.search(value):
+            return f"Error: {name} contains characters that are not allowed in a label value: {value!r}"
+    return ""
+
 
 # Global client instance
 _credential_store = CredentialStore()
@@ -232,12 +248,21 @@ def obs_query_metrics(query: str, session_name: str = "default") -> str:
 
 
 @mcp.tool()
-def obs_error_rate(service: str, session_name: str = "default") -> str:
+def obs_error_rate(
+    service: str,
+    session_name: str = "default",
+    metric: str = "http_server_requests_seconds_count",
+    service_label: str = "service",
+    status_label: str = "status",
+) -> str:
     """
     Get the HTTP 5xx error rate for a service over the last 5 minutes.
 
-    Uses the metric http_server_requests_seconds_count with status=~"5.."
-    label filter. Returns 0 or empty if the metric does not exist.
+    Defaults to the Spring Boot / Micrometer metric http_server_requests_seconds_count
+    with status=~"5..". For other stacks pass the metric and label names, e.g.
+    metric='http_requests_total', status_label='code' (Prometheus client libraries) or
+    metric='http_server_request_duration_seconds_count', status_label='http_response_status_code'
+    (OpenTelemetry). Returns an empty result if the metric does not exist.
 
     **Purpose**: Quick SRE check for server-side error spikes.
     **When to Use**: After a deployment, during incident triage, or as part
@@ -247,12 +272,19 @@ def obs_error_rate(service: str, session_name: str = "default") -> str:
     **Side Effects**: None.
 
     Args:
-        service: Value of the 'service' Prometheus label to filter on
+        service: Value of the service label to filter on
         session_name: Observability session to use (default: 'default')
+        metric: Counter metric name (default: http_server_requests_seconds_count)
+        service_label: Label holding the service name (default: 'service')
+        status_label: Label holding the HTTP status code (default: 'status')
     """
+    name_re = re.compile(r"^[a-zA-Z_:][a-zA-Z0-9_:]*$")
+    for value, what in ((metric, "metric"), (service_label, "service_label"), (status_label, "status_label")):
+        if not name_re.fullmatch(value or ""):
+            return f"Error: {what} must be a valid Prometheus name (got {value!r})."
     query = (
-        f'sum(rate(http_server_requests_seconds_count'
-        f'{{service="{service}",status=~"5.."}}[5m]))'
+        f'sum(rate({metric}'
+        f'{{{service_label}="{promql_label_value(service)}",{status_label}=~"5.."}}[5m]))'
     )
     try:
         return _obs.prom_query(session_name, query)
@@ -377,10 +409,10 @@ def obs_grafana_datasources(session_name: str = "default") -> str:
 @mcp.tool()
 def obs_grafana_alerts(session_name: str = "default") -> str:
     """
-    List active Grafana alert rules with their current states.
+    List Grafana-managed alert rules with their CURRENT states (firing, pending, normal).
 
-    Returns provisioned alert rules from /api/v1/provisioning/alert-rules,
-    including firing, pending, and inactive states.
+    Reads /api/prometheus/grafana/api/v1/rules, the endpoint that carries live rule
+    state and active alert instances. Firing and pending rules are listed first.
 
     **Purpose**: Check which alerts are currently firing or pending.
     **When to Use**: During incident triage, as a starting point for
@@ -393,9 +425,42 @@ def obs_grafana_alerts(session_name: str = "default") -> str:
         session_name: Observability session to use (default: 'default')
     """
     try:
-        return _obs.grafana_get(session_name, "/api/v1/provisioning/alert-rules")
+        data = _obs.grafana_get_json(session_name, "/api/prometheus/grafana/api/v1/rules")
     except Exception as exc:
         return f"Error: {exc}"
+    return _summarize_grafana_rules(data)
+
+
+def _summarize_grafana_rules(data: Any) -> str:
+    """Flatten Grafana's Prometheus-style rules response into a state-sorted summary."""
+    groups = ((data or {}).get("data") or {}).get("groups") or []
+    rules: list[dict[str, Any]] = []
+    for group in groups:
+        for rule in group.get("rules") or []:
+            if rule.get("type") not in (None, "alerting"):
+                continue
+            alerts = rule.get("alerts") or []
+            rules.append({
+                "name": rule.get("name", "?"),
+                "state": (rule.get("state") or "inactive").lower(),
+                "health": rule.get("health", ""),
+                "folder": group.get("file") or group.get("folder") or "",
+                "group": group.get("name", ""),
+                "active_instances": len(alerts),
+                "labels": rule.get("labels") or {},
+                "summary": (rule.get("annotations") or {}).get("summary", ""),
+                "last_error": rule.get("lastError", ""),
+            })
+    if not rules:
+        return "No Grafana-managed alert rules found."
+
+    order = {"firing": 0, "pending": 1, "recovering": 2}
+    rules.sort(key=lambda r: (order.get(r["state"], 3), r["name"]))
+    counts: dict[str, int] = {}
+    for rule in rules:
+        counts[rule["state"]] = counts.get(rule["state"], 0) + 1
+    summary = ", ".join(f"{state}={n}" for state, n in sorted(counts.items(), key=lambda kv: order.get(kv[0], 3)))
+    return format_json({"summary": summary, "rules": rules})
 
 
 # ============================================================
@@ -434,6 +499,9 @@ def obs_correlate_metrics_logs_and_trace(
         lookback_minutes: How far back to look for anomalies (default: 15 minutes)
         session_name: Observability session to use (default: 'default')
     """
+    bad = _unsafe_selector_values(service_name=service_name, namespace=namespace)
+    if bad:
+        return bad
     try:
         session = _obs.session(session_name)
     except KeyError as exc:
@@ -631,6 +699,9 @@ def obs_post_deploy_canary_audit(
         canary_window_minutes: Size of the post-deploy window to evaluate (default: 10)
         session_name: Observability session to use (default: 'default')
     """
+    bad = _unsafe_selector_values(service_name=service_name, namespace=namespace)
+    if bad:
+        return bad
     try:
         session = _obs.session(session_name)
     except KeyError as exc:
@@ -820,6 +891,9 @@ def obs_get_slow_traces_and_bottlenecks(
         limit: Maximum number of slow traces to analyze (1–20, default: 10)
         session_name: Observability session to use (default: 'default')
     """
+    bad = _unsafe_selector_values(service_name=service_name)
+    if bad:
+        return bad
     try:
         session = _obs.session(session_name)
     except KeyError as exc:
