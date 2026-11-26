@@ -1,43 +1,35 @@
 # Observability MCP Server
 
-Open-source MCP server owned by **Pawan Gunjkar** (`pawangunjkar@gmail.com` · [GitHub](https://github.com/Pawangunjkar)). MIT licensed.
+> A Python **Model Context Protocol (MCP)** server for **Prometheus, Loki, Grafana Tempo, and Grafana** — 15 SRE tools for PromQL metrics, LogQL logs, distributed traces, cross-signal incident correlation, slow-trace bottleneck detection, and post-deploy canary audits.
 
-Developers ask why a request failed and get metrics, logs, and a trace without opening Grafana. Queries are read-only. `obs_annotate` is the only write: it posts a Grafana annotation.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![MCP Protocol](https://img.shields.io/badge/protocol-MCP-green.svg)](https://modelcontextprotocol.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Sibling servers: [github-mcp](https://github.com/Pawangunjkar/github-mcp), [jenkins-mcp](https://github.com/Pawangunjkar/jenkins-mcp), [artifact-registry-mcp](https://github.com/Pawangunjkar/artifact-registry-mcp), [k8s-mcp](https://github.com/Pawangunjkar/k8s-mcp), [linux-ssh-mcp](https://github.com/Pawangunjkar/linux-ssh-mcp).
+---
 
-## 🚀 Hosted Cloud (MCPize.com) & Pro Agent Skill Bundles (Agensi.io)
+## Overview
 
-Run locally over `stdio` or subscribe to managed cloud endpoints on **[MCPize.com](https://mcpize.com)** paired with production `SKILL.md` playbooks on **[Agensi.io](https://agensi.io)**:
+**Observability MCP Server** lets AI assistants investigate latency spikes, 5xx errors, and regressions across metrics, logs, and traces without switching between Grafana tabs.
 
-| Tier | Offering | Cloud Runtime ([MCPize.com](https://mcpize.com)) | Pro Playbook ([Agensi.io](https://agensi.io)) | What's Included |
-| :--- | :--- | :---: | :---: | :--- |
-| **Free Demo** | Starter Access | `$0` *(25 read-only calls/mo)* | `github-mcp-lite` (`$0`) | Free read-only trial tier |
-| **Individual Pro** *(This Repo)* | **`observability-mcp`** | **`$19/mo`** *(`pawangunjkar-observability-mcp`)* | `observability-sre-mcp-pro` (`$19`) | All **15 Prometheus/Loki/Tempo/Grafana tools** + 5 SRE correlation playbooks |
-| **3-in-1 Bundles** *(Included in 2 Packs)* | **Cloud-Native DevOps** \| **SRE Incident Triage** | **`$39/mo`** each | Bundle 1 \| Bundle 3 (`$39`) | `github+k8s+obs` (118 tools) \| `k8s+obs+linux-ssh` (100 tools) |
-| **6-in-1 Master Suite** | **Enterprise SDLC Orchestrator** *(Saves 37%)* | **`$69/mo`** *(`pawangunjkar-enterprise-sdlc-suite`)* | `enterprise-sdlc-orchestrator` (`$69`) | **All 6 MCP servers unified (245 tools)** + end-to-end SDLC/SRE workflows |
+- **Read-only queries by default:** Metrics, logs, traces, datasources, and alert rules are read-only.
+- **Cross-signal correlation:** `obs_correlate_metrics_logs_and_trace`, `obs_post_deploy_canary_audit`, and `obs_get_slow_traces_and_bottlenecks` unify Prometheus, Loki, and Tempo in single investigative calls.
+- **Explicit writes:** `obs_manage_grafana_annotations_and_silences` is the only mutating tool (for annotations and silences).
+- **Named sessions:** `ObsHub` manages multiple named environments (`OBS_SESSION`, default `default`) with optional credential caching under `~/.observability-mcp-cache`.
 
-## Project information
+---
 
-| Item | Value |
-| --- | --- |
-| Package | `observability-mcp` |
-| Runtime | Python 3.10+, FastMCP, stdio, httpx |
-| Backends | Prometheus, Loki, Tempo, Grafana |
-| Reads | PromQL, LogQL, trace fetch, trace search, datasources, alert rules |
-| Write | Grafana annotation only |
-
-## Architecture
+## Architecture & Investigation Flow
 
 ```mermaid
 flowchart TB
-  subgraph L1["Layer 1 — Editor"]
-    IDE["Cursor or Claude Desktop"]
+  subgraph L1["Layer 1 — AI Client"]
+    IDE["Cursor, Claude Desktop, Windsurf, VS Code"]
   end
 
-  subgraph L2["Layer 2 — MCP"]
-    SRV["observability-mcp"]
-    HUB["ObsHub session"]
+  subgraph L2["Layer 2 — Observability MCP"]
+    SRV["observability-mcp (FastMCP — 15 tools)"]
+    HUB["ObsClient / Named Sessions"]
   end
 
   subgraph L3["Layer 3 — Signals"]
@@ -47,49 +39,109 @@ flowchart TB
     G["Grafana :3000"]
   end
 
-  IDE -->|"obs_query_metrics"| SRV
-  IDE -->|"obs_query_logs"| SRV
-  IDE -->|"obs_get_trace"| SRV
+  IDE -->|"PromQL / LogQL / Trace / Canary"| SRV
   SRV --> HUB
-  HUB -->|"PromQL instant"| P
-  HUB -->|"LogQL range"| L
-  HUB -->|"trace id or tags"| T
-  HUB -->|"alerts and annotations"| G
+  HUB -->|"Instant PromQL"| P
+  HUB -->|"LogQL Range"| L
+  HUB -->|"Trace ID / TraceQL"| T
+  HUB -->|"Datasources / Alerts / Annotations"| G
 ```
 
 ```mermaid
 flowchart LR
-  ERR["5xx or exception"] --> LOG["obs_query_logs"]
-  LOG --> TRACE["obs_search_traces"]
-  TRACE --> SPAN["obs_get_trace"]
-  SPAN --> RATE["obs_error_rate"]
-  RATE --> NOTE["obs_annotate"]
+  ERR["5xx Spike or Latency"] --> COR["obs_correlate_metrics_logs_and_trace"]
+  COR --> LOG["obs_query_logs"]
+  LOG --> TRACE["obs_search_traces / obs_get_trace"]
+  TRACE --> SLOW["obs_get_slow_traces_and_bottlenecks"]
+  SLOW --> NOTE["obs_manage_grafana_annotations_and_silences"]
 ```
 
-## Tools
+---
 
-| Tool | What it does |
-| --- | --- |
-| `obs_connect` | Save backend URLs and probe health |
-| `obs_query_metrics` | Instant PromQL |
-| `obs_error_rate` | 5xx rate for a `service` label |
-| `obs_query_logs` | LogQL range query |
-| `obs_get_trace` | Tempo trace by id |
-| `obs_search_traces` | Tempo search by tags |
-| `obs_grafana_datasources` | List Grafana datasources |
-| `obs_grafana_alerts` | List alert rules |
-| `obs_annotate` | Write a Grafana annotation |
+## Project Layout
 
-Metrics, logs, and traces are read-only. The annotation tool is the write path.
+```text
+observability-mcp/
+├── src/observability_mcp/
+│   ├── __init__.py          # Package metadata
+│   ├── __main__.py          # `python -m observability_mcp` entry point
+│   ├── server.py            # FastMCP server, 15 tools, /health, CLI transport
+│   ├── obs_client.py        # Prometheus, Loki, Tempo, and Grafana HTTP client
+│   └── credential_store.py  # Session credential persistence
+├── tests/                   # Unit & httpx.MockTransport regression tests
+├── pyproject.toml           # Hatchling config (`observability-mcp` CLI)
+├── Dockerfile               # Streamable HTTP container
+└── mcpize.yaml              # Hosted HTTP runtime config
+```
 
-## Cursor
+---
+
+## Tools Reference (15)
+
+### Connection & Sessions (4)
+
+| Tool | Description |
+|---|---|
+| `obs_connect` | Connect to Prometheus, Loki, Tempo, and/or Grafana and create a named session. |
+| `obs_disconnect` | Disconnect an observability session. |
+| `obs_status` | Show active sessions and configured backend URLs. |
+| `obs_save_credentials` | Persist backend URLs and tokens to local cache for a session. |
+
+### Metrics, Logs, Traces & Grafana (7)
+
+| Tool | Description |
+|---|---|
+| `obs_query_metrics` | Run an instant PromQL query against Prometheus. |
+| `obs_error_rate` | Compute HTTP 5xx error rate for a `service` label over the last 5 minutes. |
+| `obs_query_logs` | Run a LogQL range query against Loki. |
+| `obs_get_trace` | Fetch a single distributed trace from Tempo by `trace_id`. |
+| `obs_search_traces` | Search Tempo traces by tag `key=value` pairs. |
+| `obs_grafana_datasources` | List Grafana datasources with types and connection details. |
+| `obs_grafana_alerts` | List Grafana-managed alert rules with current states (`firing`, `pending`, `normal`). |
+
+### SRE Correlation & Incident Governance (4)
+
+| Tool | Description |
+|---|---|
+| `obs_correlate_metrics_logs_and_trace` | Cross-signal incident correlator linking metrics, logs, and traces. |
+| `obs_post_deploy_canary_audit` | Compare the 4 SRE Golden Signals before vs. after a deployment. |
+| `obs_get_slow_traces_and_bottlenecks` | Find slow traces and identify the bottleneck service/span. |
+| `obs_manage_grafana_annotations_and_silences` | Create a Grafana annotation or Alertmanager silence. |
+
+---
+
+## Installation & Configuration
+
+Requires **Python 3.10+** and [uv](https://docs.astral.sh/uv/).
+
+```bash
+git clone https://github.com/Pawangunjkar/observability-mcp.git
+cd observability-mcp
+uv sync
+uv run observability-mcp
+```
+
+### Environment Variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PROMETHEUS_URL` | unset | Prometheus / Thanos / VictoriaMetrics base URL. |
+| `LOKI_URL` | unset | Grafana Loki base URL. |
+| `TEMPO_URL` | unset | Grafana Tempo base URL. |
+| `GRAFANA_URL` | unset | Grafana server base URL. |
+| `GRAFANA_TOKEN` | unset | Grafana API key or service account token. |
+| `OBS_SESSION` | `default` | Default session name. |
+| `OBS_TIMEOUT` | `30` | HTTP timeout in seconds. |
+| `OBS_MCP_CACHE_DIR` | `~/.observability-mcp-cache` | Credential cache directory. |
+
+### Cursor / Claude Desktop
 
 ```json
 {
   "mcpServers": {
     "observability": {
       "command": "uv",
-      "args": ["run", "--directory", "C:/AI_Workspaces/Anti_Workspace/observability-mcp", "server.py"],
+      "args": ["run", "--directory", "/absolute/path/to/observability-mcp", "observability-mcp"],
       "env": {
         "PROMETHEUS_URL": "http://localhost:9090",
         "LOKI_URL": "http://localhost:3100",
@@ -102,4 +154,19 @@ Metrics, logs, and traces are read-only. The annotation tool is the write path.
 }
 ```
 
-Example: `obs_query_logs(query='{app="order-orchestrator"} |= "ERROR"', limit=50)`
+---
+
+## Development & Tests
+
+```bash
+uv run python -m unittest discover -s tests -v
+uv build
+```
+
+---
+
+## Author & License
+
+**Pawan Gunjkar** — pawangunjkar@gmail.com · [GitHub](https://github.com/Pawangunjkar)
+
+MIT License — see [LICENSE](LICENSE).

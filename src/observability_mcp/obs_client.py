@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 import httpx
 
-from credential_store import CredentialStore, ObsCredentials
+from observability_mcp.credential_store import CredentialStore, ObsCredentials
 
 
 # Constants

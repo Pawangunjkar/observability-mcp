@@ -18,16 +18,17 @@ from unittest import mock
 import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 os.environ["OBS_MCP_CACHE_DIR"] = tempfile.mkdtemp()
 for var in ("PROMETHEUS_URL", "LOKI_URL", "TEMPO_URL", "GRAFANA_URL", "GRAFANA_TOKEN"):
     os.environ.pop(var, None)
 
-import obs_client  # noqa: E402
-import server  # noqa: E402
-from credential_store import ObsCredentials  # noqa: E402
+from observability_mcp import obs_client  # noqa: E402
+from observability_mcp import server  # noqa: E402
+from observability_mcp.credential_store import ObsCredentials  # noqa: E402
 
 _REAL_CLIENT = httpx.Client
 

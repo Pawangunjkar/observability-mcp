@@ -23,8 +23,8 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from obs_client import ObsClient, format_json, promql_label_value
-from credential_store import CredentialStore
+from observability_mcp.obs_client import ObsClient, format_json, promql_label_value
+from observability_mcp.credential_store import CredentialStore
 
 # ============================================================
 # Initialize MCP Server
